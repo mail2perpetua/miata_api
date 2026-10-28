@@ -1,17 +1,19 @@
 # MIATA — Database (PostgreSQL)
 
-## Two databases, never mixed
+## One database
 
-| Database (env var) | Default name | Contents | Created by |
-|---|---|---|---|
-| Live (`LIVE_DB_NAME`) | `miata_live_db` | The actual application data. Starts empty except the default completion policy. | `npm run db:setup`, then `npm run create-admin` |
-| Mock (`MOCK_DB_NAME`) | `miata_mock_db` | Development and testing data loaded from [`database/mock-data`](../database/mock-data) | `npm run db:mock` (`-- --reset` to reload) |
+The application uses one database, `LIVE_DB_NAME` (default `miata_live_db`), and one upload folder, `UPLOAD_DIR`.
 
-The server picks one with `DATA_SOURCE=live|mock` (or `npm run dev:mock` / `start:mock`). The test suite always uses the mock
-database: each test file rebuilds its schema, and `npm test` reloads the mock data when the run ends. Uploaded files are kept
-apart the same way (`UPLOAD_DIR`, `MOCK_UPLOAD_DIR`). Safeguards: the two names must differ (the server refuses to start
-otherwise), the mock loader refuses to write to `LIVE_DB_NAME`, the test reset refuses any database other than
-`MOCK_DB_NAME`, and `DATA_SOURCE=mock` is refused when `NODE_ENV=production`.
+| Command | What it does |
+|---|---|
+| `npm run db:setup` / `npm run migrate` | Creates the database if needed and applies pending [migrations](#migrations) |
+| `npm run db:seed` | Loads the [seed data](#seed-data) into a new database |
+| `npm run db:script` | Writes [`database/miata_live_db.sql`](#database-script): schema + seed data in one SQL script |
+| `npm run create-admin` | Creates an admin login |
+
+The test suite never touches it: `npm test` runs on its own throwaway database and upload folder (`TEST_DB_NAME`, default
+`miata_test_db`, and `TEST_UPLOAD_DIR`, default `./uploads-test`), which each test file wipes and rebuilds. Safeguards: the
+test names must differ from the live ones (the API refuses to start otherwise), and the test reset refuses `LIVE_DB_NAME`.
 
 ## Migrations
 
@@ -42,15 +44,22 @@ These files replace the earlier two-file schema (`001_initial_schema.sql`, `002_
 schema was compared object by object with the old one (columns, types, defaults, constraints, indexes, triggers, views) and
 is identical.
 
-## Mock data
+## Seed data
 
-[`database/mock-data/tables/*.json`](../database/mock-data/tables) holds one JSON file per table (rows exactly as exported,
-including ids and timestamps) and [`database/mock-data/uploads`](../database/mock-data/uploads) the matching files (videos,
-assignment attachments, submissions, payment proofs). `npm run db:mock` creates the mock database, runs the migrations, inserts the rows in
-foreign-key order in one transaction, moves the id and code sequences past the loaded rows, and copies the files to
-`MOCK_UPLOAD_DIR`. Refresh tokens, reset tokens and migration records are never part of mock data.
+[`database/seed/tables/*.json`](../database/seed/tables) holds one JSON file per table (rows exactly as exported, including
+ids and timestamps) and [`database/seed/uploads`](../database/seed/uploads) the matching files (three videos, six payment
+proofs). `npm run db:seed` runs pending migrations, inserts the rows into `LIVE_DB_NAME` in foreign-key order in one
+transaction, moves the id and code sequences past the loaded rows, and copies the files to `UPLOAD_DIR` (existing files are
+kept). Settings, refresh tokens, reset tokens and migration records are never part of the seed.
 
-Every mock account uses the password `Miata-6C75DR9` (mock data only). The mock data holds exactly the accounts the
+The seed only loads into a new database: one with no data, or only admin accounts made with `npm run create-admin`. Seed
+users whose ids those admins already hold get the next free ids (every reference to them follows), and seeded activity
+entries get ids after the existing ones. Anything else already in the database stops the seed before it writes, so existing
+data is never changed or deleted.
+
+Every seeded account signs in once with the password `Miata-6C75DR9` and must then choose a new one
+(`must_reset_password`, reason `admin_request`). The password is published in this repository, so sign in to (or
+deactivate) every seeded account before the site goes public. The seed holds exactly the accounts the
 application needs, all active: the admin `admin@miata.local`; agents `ramesh.agent@` and `priya.agent@`; the 2026–2027
 timetable's lecturers as the five professors — `niveditha@`, `jai@`, `saranya@`, `suzmitha@`, `bagyavasan@` (sample
 addresses: the documents give none); and five students — `arun.kumar@`, `priya.sharma@`, `sneha.reddy@`, `meera.iyer@`,
@@ -59,7 +68,8 @@ with the records that existed only because of them (their assignments, submissio
 enrolments, payments, activity entries and files), as were the sample enquiries; every course, module, lesson, video and batch
 was kept.
 
-Fees and payments in the mock data (currency AUD, with sample transfer instructions): the PG Diploma costs $36,000, Clinical
+Fees and payments in the seed (the fee settings are not seeded: currency AUD and empty payment instructions come from
+migration 013; enter your transfer instructions under Admin → Settings): the PG Diploma costs $36,000, Clinical
 Training $8,000 and ARDMS Preparation $2,500. Arun has a $10,000 scholarship, one approved and one pending payment; Priya
 Sharma has an approved and a rejected payment; Meera has an approved payment; Divya has a pending payment; Sneha has paid
 nothing yet. Every payment has a proof image in `uploads/payment-proofs`. Ramesh referred Arun and Priya Sharma; Priya Nair
@@ -78,24 +88,37 @@ sessions, times not set, each linked to their professor account and assigned as 
 (17 module assignments, no others on the course) — and their 96 weekly sessions, each in its module. The cardiac module is
 in the catalogue but not scheduled. No student is enrolled in it yet.
 
-Module statuses in the mock data: on the PG Diploma, Ultrasound Physics & Instrumentation and Abdominal Ultrasound are
+Module statuses in the seed: on the PG Diploma, Ultrasound Physics & Instrumentation and Abdominal Ultrasound are
 Completed and Obstetrics & Gynecology In Progress; on Clinical Training, Scanning Protocols is Completed and Supervised
 Clinical Practice In Progress (marked by professors no longer in the data, so "updated by" is empty); on MIATA Postgraduate
 Sonography, the five modules with week-1 sessions are In Progress, each marked by its lecturer on 23 Oct 2026. Every other
 module is Not Started.
 
-Batches in the mock data: **PGDU Batch 2026-A** (PG Diploma; students Arun, Priya Sharma, Sneha), **PGDU Batch 2026-B**
+Batches in the seed: **PGDU Batch 2026-A** (PG Diploma; students Arun, Priya Sharma, Sneha), **PGDU Batch 2026-B**
 (PG Diploma; Divya) and **Clinical Training 2026** (Meera); the "Abdominal Scanning Fundamentals" video is restricted to
 2026-A. The original courses and the batches have no professors assigned yet, and so no assignments, submissions or online
 classes.
 
-### How the existing data was migrated
+### Where the seed data came from
 
-The data that existed before the restructure (the demo dataset) became the mock data: its rows were exported to
-`database/mock-data/tables` and its upload folder to `database/mock-data/uploads`, the mock database was built from those
-files, and `npm run db:compare` confirmed every table identical to the original (same row counts, same row checksums, no
-duplicates). The original database and its backup have since been removed; `database/mock-data` is the only source of the
-mock data.
+The data that existed before the restructure (the demo dataset) became the seed: its rows were exported to JSON and its
+upload folder copied, a database was built from those files, and `npm run db:compare` confirmed every table identical to
+the original (same row counts, same row checksums, no duplicates). Until 29 Oct 2026 it was loaded into a separate mock
+database (`miata_mock_db`); that flow was removed, the files moved to `database/seed`, the sample settings (placeholder bank
+details) were dropped, and the accounts were set to require a new password at first sign-in. `database/seed` is the only
+source of the seed data.
+
+## Database script
+
+[`database/miata_live_db.sql`](../database/miata_live_db.sql) builds the whole database in one transaction: the
+`schema_migrations` table, every migration in order (each recorded as applied, so `npm run migrate` continues from there),
+the seed rows (inserted exactly as `npm run db:seed` inserts them) and the sequence positions. Run it on a new, empty
+database, in pgAdmin (Query Tool → Open File → Execute) or with
+`psql -h localhost -U postgres -d miata_live_db -f database/miata_live_db.sql`; if anything fails, nothing is created. It
+cannot copy files: afterwards copy `database/seed/uploads/*` into `UPLOAD_DIR`.
+
+It is generated, never edited by hand: run `npm run db:script` after adding a migration or changing `database/seed`.
+`npm test` fails while the file is out of date, and checks that it builds exactly the same database as `npm run db:seed`.
 
 ## Checking data consistency
 
@@ -279,7 +302,7 @@ File bytes are removed only after the database transaction commits.
 
 ## Inspecting with pgAdmin 4
 
-Connect to `localhost:5432` as the configured `DB_USER` and open **miata_live_db** (or `miata_mock_db`) **→ Schemas → public**. Useful queries:
+Connect to `localhost:5432` as the configured `DB_USER` and open **miata_live_db** **→ Schemas → public**. Useful queries:
 
 ```sql
 -- Referral counts per agent (same numbers the agent dashboard shows)

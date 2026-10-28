@@ -1,7 +1,8 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import request from 'supertest';
 import { pool } from '../src/config/db.js';
-import { api, closeDatabase, createUser, login, PASSWORD, resetDatabase } from './helpers.js';
+import { api, app, closeDatabase, createUser, login, PASSWORD, resetDatabase } from './helpers.js';
 
 const XHR = { 'X-Requested-With': 'XMLHttpRequest' };
 const refreshCookie = (res) => res.headers['set-cookie']?.find((c) => c.startsWith('miata_rt='));
@@ -216,7 +217,7 @@ describe('change password', () => {
     const other = await login(user.email);
     const current = await login(user.email);
     const res = await api()
-      .post('/api/profile/password')
+      .post('/api/auth/password')
       .set('Authorization', `Bearer ${current.token}`)
       .send({ currentPassword: PASSWORD, newPassword: 'Changed1234' });
     assert.equal(res.status, 200);
@@ -225,5 +226,20 @@ describe('change password', () => {
     const stale = await api().get('/api/auth/me').set('Authorization', `Bearer ${other.token}`);
     assert.equal(stale.status, 401);
     assert.equal(stale.body.error.code, 'SESSION_REVOKED');
+  });
+
+  it('keeps a "remember me" session persistent', async () => {
+    const user = await createUser('agent');
+    // An agent keeps cookies like a browser, sending them only to paths their Path attribute allows.
+    const browser = request.agent(app);
+    const signedIn = await browser.post('/api/auth/login').send({ email: user.email, password: PASSWORD, remember: true });
+    assert.match(refreshCookie(signedIn), /Expires=/);
+
+    const res = await browser
+      .post('/api/auth/password')
+      .set('Authorization', `Bearer ${signedIn.body.data.accessToken}`)
+      .send({ currentPassword: PASSWORD, newPassword: 'Changed1234' });
+    assert.equal(res.status, 200);
+    assert.match(refreshCookie(res), /Expires=/, 'the new refresh cookie must outlive the browser session');
   });
 });

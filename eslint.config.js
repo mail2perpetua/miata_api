@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/', 'uploads/', 'uploads-mock/'] },
+  { ignores: ['node_modules/', 'uploads/', 'uploads-test/', 'uploads-mock/'] },
   js.configs.recommended,
   {
     files: ['**/*.js'],

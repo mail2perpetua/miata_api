@@ -9,14 +9,15 @@ export const listProfessors = (query) => repo.listProfessors(query);
 export async function getProfessor(professorId) {
   const user = await getUserWithProfile(professorId);
   if (!user || user.role !== 'professor') throw notFound('Professor');
-  const [workload, courses, modules, batches, reviews] = await Promise.all([
+  const [workload, courses, modules, batches, lectures, reviews] = await Promise.all([
     repo.professorWorkload(professorId),
     repo.professorCourses(professorId),
     repo.professorModules(professorId),
     repo.professorBatches(professorId),
+    repo.professorLectures(professorId),
     repo.recentReviews(professorId),
   ]);
-  return { ...user, workload, courses, modules, batches, recentReviews: reviews };
+  return { ...user, workload, courses, modules, batches, lectures, recentReviews: reviews };
 }
 
 export async function createProfessor(data, actor) {

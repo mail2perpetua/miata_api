@@ -12,7 +12,8 @@ export const hashPassword = (plain) => bcrypt.hash(plain, env.auth.bcryptRounds)
 export const verifyPassword = (plain, hash) => bcrypt.compare(plain, hash);
 
 // Compared against when the email is unknown so response time does not reveal which accounts exist.
-const DUMMY_HASH = bcrypt.hashSync('timing-equaliser-not-a-password', 4);
+// Same cost as real password hashes: a cheaper dummy makes unknown emails answer measurably faster.
+const DUMMY_HASH = bcrypt.hashSync('timing-equaliser-not-a-password', env.auth.bcryptRounds);
 export const verifyAgainstDummy = (plain) => bcrypt.compare(plain, DUMMY_HASH);
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion when read aloud

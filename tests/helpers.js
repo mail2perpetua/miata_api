@@ -11,10 +11,10 @@ export const PASSWORD = 'Testing123';
 export const app = createApp();
 export const api = () => request(app);
 
-/** Recreate the schema from migrations. Refuses to run against anything but the mock database. */
+/** Recreate the schema from migrations. Refuses to run against anything but the throwaway test database. */
 export async function resetDatabase() {
-  if (!env.isTest || env.db.database !== env.databases.mock || env.db.database === env.databases.live) {
-    throw new Error(`Refusing to reset database "${env.db.database}" — tests must use the mock database`);
+  if (!env.isTest || env.db.database === env.liveDatabase) {
+    throw new Error(`Refusing to reset database "${env.db.database}" — tests must use the test database (TEST_DB_NAME)`);
   }
   await ensureDatabase(env.db.database);
   await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');

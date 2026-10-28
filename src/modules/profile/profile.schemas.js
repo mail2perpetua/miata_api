@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isoDate, optionalText, password, phone, requiredText } from '../../validators/common.js';
+import { isoDate, optionalText, phone, requiredText } from '../../validators/common.js';
 
 const base = { fullName: requiredText(120, 'Full name').optional(), phone: phone.optional() };
 
@@ -27,8 +27,3 @@ export const selfProfileSchemas = {
     country: optionalText(100).optional(),
   }),
 };
-
-export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required').max(128),
-  newPassword: password,
-});

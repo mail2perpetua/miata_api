@@ -32,13 +32,12 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: int(5000),
   TRUST_PROXY: bool(false),
-  // live = the actual application data (LIVE_DB_NAME). mock = development and testing data (MOCK_DB_NAME). `--mock` on the command line also selects mock.
-  DATA_SOURCE: z.enum(['live', 'mock']).default('live'),
 
   DB_HOST: z.string().default('localhost'),
   DB_PORT: int(5432),
   LIVE_DB_NAME: dbName('miata_live_db'),
-  MOCK_DB_NAME: dbName('miata_mock_db'),
+  // Throwaway database for `npm test` only: every test run wipes it.
+  TEST_DB_NAME: dbName('miata_test_db'),
   DB_USER: z.string().default('postgres'),
   DB_PASSWORD: z.string().default(''),
   DB_SSL: bool(false),
@@ -55,7 +54,7 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default(''),
 
   UPLOAD_DIR: z.string().default('./uploads'),
-  MOCK_UPLOAD_DIR: z.string().default('./uploads-mock'),
+  TEST_UPLOAD_DIR: z.string().default('./uploads-test'),
   MAX_VIDEO_SIZE_MB: int(1024),
   MAX_DOCUMENT_SIZE_MB: int(20),
 
@@ -84,8 +83,6 @@ if (!parsed.success) {
 
 const e = parsed.data;
 const isTest = e.NODE_ENV === 'test';
-// Tests always run against the mock database; `npm test` reloads the mock data when they finish.
-const dataSource = isTest || process.argv.includes('--mock') ? 'mock' : e.DATA_SOURCE;
 const fromRoot = (p) => path.resolve(API_ROOT, p);
 const list = (s) =>
   s
@@ -94,12 +91,10 @@ const list = (s) =>
     .filter(Boolean);
 const frontendUrl = e.FRONTEND_URL.replace(/\/$/, '');
 
-// Each data source has its own database and upload folder, so mock data never mixes with live data.
-const DATABASES = { live: e.LIVE_DB_NAME, mock: e.MOCK_DB_NAME };
-const UPLOAD_DIRS = { live: e.UPLOAD_DIR, mock: e.MOCK_UPLOAD_DIR };
-
-if (DATABASES.live === DATABASES.mock) {
-  console.error('LIVE_DB_NAME and MOCK_DB_NAME must be different databases.');
+// The application has one database (LIVE_DB_NAME) and one upload folder (UPLOAD_DIR). Only the test suite
+// (NODE_ENV=test) runs elsewhere, on its own database and upload folder, because every test run wipes them.
+if (e.TEST_DB_NAME === e.LIVE_DB_NAME || fromRoot(e.TEST_UPLOAD_DIR) === fromRoot(e.UPLOAD_DIR)) {
+  console.error('TEST_DB_NAME and TEST_UPLOAD_DIR must differ from LIVE_DB_NAME and UPLOAD_DIR: the tests wipe them.');
   process.exit(1);
 }
 
@@ -109,13 +104,12 @@ export const env = {
   isTest,
   port: e.PORT,
   trustProxy: e.TRUST_PROXY,
-  dataSource,
-  databases: DATABASES,
+  liveDatabase: e.LIVE_DB_NAME,
 
   db: {
     host: e.DB_HOST,
     port: e.DB_PORT,
-    database: DATABASES[dataSource],
+    database: isTest ? e.TEST_DB_NAME : e.LIVE_DB_NAME,
     user: e.DB_USER,
     password: e.DB_PASSWORD,
     ssl: e.DB_SSL ? { rejectUnauthorized: false } : false,
@@ -136,9 +130,8 @@ export const env = {
   frontendUrl,
   corsOrigins: [frontendUrl, ...list(e.CORS_ORIGINS)],
 
-  uploadDirs: Object.fromEntries(Object.entries(UPLOAD_DIRS).map(([k, v]) => [k, fromRoot(v)])),
   uploads: {
-    dir: fromRoot(UPLOAD_DIRS[dataSource]),
+    dir: fromRoot(isTest ? e.TEST_UPLOAD_DIR : e.UPLOAD_DIR),
     maxVideoBytes: e.MAX_VIDEO_SIZE_MB * 1024 * 1024,
     maxDocumentBytes: e.MAX_DOCUMENT_SIZE_MB * 1024 * 1024,
   },

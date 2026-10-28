@@ -63,9 +63,21 @@ export async function professorCourses(professorId) {
 
 export async function professorModules(professorId) {
   const { rows } = await pool.query(
-    `SELECT m.id, m.title, m.course_id, c.title AS course_title, pma.assigned_at
+    `SELECT m.id, m.title, m.course_id, c.title AS course_title, c.code AS course_code, pma.assigned_at
        FROM professor_module_assignments pma JOIN modules m ON m.id = pma.module_id JOIN courses c ON c.id = m.course_id
       WHERE pma.professor_id = $1 ORDER BY c.title, m.position`,
+    [professorId],
+  );
+  return rows;
+}
+
+/** Courses whose timetable names the professor as a lecturer (course_lecturers), with their weekly session. */
+export async function professorLectures(professorId) {
+  const { rows } = await pool.query(
+    `SELECT cl.id, cl.course_id, c.title AS course_title, c.code AS course_code, c.is_active AS course_active,
+            cl.allocation, cl.delivery_day, cl.start_time, cl.end_time, cl.session_minutes
+       FROM course_lecturers cl JOIN courses c ON c.id = cl.course_id
+      WHERE cl.professor_id = $1 ORDER BY c.title, cl.position`,
     [professorId],
   );
   return rows;

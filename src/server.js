@@ -7,28 +7,19 @@ import { verifyEmailTransport } from './services/email.service.js';
 import { startAccessExpiryJob } from './services/accessExpiry.service.js';
 import { logger } from './utils/logger.js';
 
-const SETUP_HINT = { live: 'npm run db:setup', mock: 'npm run db:mock' };
-
 async function start() {
-  if (env.isProduction && env.dataSource === 'mock') {
-    logger.error('Mock data is for development and testing only. Remove --mock / DATA_SOURCE=mock in production.');
-    process.exit(1);
-  }
-
   try {
     const db = await checkConnection();
-    logger.info(`Connected to PostgreSQL database "${db.db}" (${env.dataSource} data)`);
+    logger.info(`Connected to PostgreSQL database "${db.db}"`);
   } catch (err) {
     logger.error(`Cannot connect to PostgreSQL at ${env.db.host}:${env.db.port}/${env.db.database}: ${err.message}`);
-    logger.error(
-      `Check the DB_* values in miata-api/.env, that PostgreSQL is running, and that the database exists (${SETUP_HINT[env.dataSource]}).`,
-    );
+    logger.error('Check the DB_* values in miata-api/.env, that PostgreSQL is running, and that the database exists (npm run db:setup).');
     process.exit(1);
   }
 
   const pending = await pendingMigrations();
   if (pending.length) {
-    logger.error(`Database schema is out of date (${pending.join(', ')} not applied). Run: ${SETUP_HINT[env.dataSource]}`);
+    logger.error(`Database schema is out of date (${pending.join(', ')} not applied). Run: npm run migrate`);
     process.exit(1);
   }
 

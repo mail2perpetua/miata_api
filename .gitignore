@@ -6,9 +6,11 @@ node_modules/
 .env.*
 !.env.example
 
-# Uploaded files: live and mock (loaded from database/mock-data/uploads)
-uploads/
-uploads-mock/
+# Uploaded files (live, and the test suite's throwaway folder). The seed's sample files in database/seed/uploads are committed.
+/uploads/
+/uploads-test/
+# Left over from the removed mock database
+/uploads-mock/
 
 # Logs & OS files
 *.log

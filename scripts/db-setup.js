@@ -1,6 +1,5 @@
-// Creates the database if needed and applies pending migrations (safe to run any time).
-//   npm run db:setup            the live database (LIVE_DB_NAME)
-//   npm run db:setup -- --mock  the mock database schema only (use npm run db:mock to also load mock data)
+// Creates the live database (LIVE_DB_NAME) if needed and applies pending migrations (safe to run any time).
+//   npm run db:setup     (same as npm run migrate)
 import { env } from '../src/config/env.js';
 import { ensureDatabase, runMigrations } from '../src/config/migrator.js';
 

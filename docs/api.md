@@ -36,6 +36,7 @@ Rate limits (per IP): login 10 failed / 15 min · forgot-password 5 / 15 min · 
 | `POST /auth/reset-password` | `{ token, password }` | Sets the new password (must differ from the old one), clears the reset flag and ends all sessions. |
 | `GET /auth/me` | — | Current user with role profile. |
 | `GET /auth/session` | — | Lightweight heartbeat (the dashboards poll it every 60 s). |
+| `POST /auth/password` | `{ currentPassword, newPassword }` | Change password while signed in. Ends all other sessions and returns a fresh session for this device (a "remember me" session stays persistent). |
 | `POST /enquiries` | `{ name, email, phone?, subject?, message, courseInterest? }` | Website contact form. Stores the enquiry, notifies admins in-app, then attempts the notification email. (201) |
 
 ## Any signed-in user — `/api/profile`, `/api/notifications`, `/api/media`
@@ -44,7 +45,6 @@ Rate limits (per IP): login 10 failed / 15 min · forgot-password 5 / 15 min · 
 |---|---|---|
 | `GET /profile` | — | Own user and role profile (agents also get `referralLink`). |
 | `PATCH /profile` | `fullName?, phone?` and role fields | Student: `dateOfBirth, address, city, country, qualification`. Professor: `specialization, qualification, bio`. Agent: `organization, city, country`. Email and codes are admin-managed. |
-| `POST /profile/password` | `{ currentPassword, newPassword }` | Ends all other sessions and returns a fresh session for this device. |
 | `GET /notifications` | `limit?`, `unreadOnly?` | `meta.unread` gives the badge count. |
 | `PATCH /notifications/:id/read` | — | Own notifications only. |
 | `POST /notifications/read-all` | — | |

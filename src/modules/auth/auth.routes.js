@@ -18,5 +18,7 @@ router.post('/reset-password/verify', resetTokenLimiter, validate({ body: s.rese
 router.post('/reset-password', resetTokenLimiter, validate({ body: s.resetPasswordSchema }), ctrl.resetPassword);
 router.get('/me', authenticate, ctrl.me);
 router.get('/session', authenticate, ctrl.session);
+// Under /api/auth so the browser sends the refresh cookie (Path=/api/auth): a "remember me" session stays persistent.
+router.post('/password', authenticate, validate({ body: s.changePasswordSchema }), ctrl.changePassword);
 
 export default router;
